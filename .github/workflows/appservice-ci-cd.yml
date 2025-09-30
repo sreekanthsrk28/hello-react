@@ -1,41 +1,40 @@
-name: CI/CD to Azure App Service
+name: CI/CD to Azure App Service (OIDC)
 
 on:
   push:
-    branches: [ main ]   # deploy on push to main
+    branches: [ main ]
+
+# 👇 Required for OIDC!
+permissions:
+  id-token: write     # allow GitHub to issue an OIDC token for this job
+  contents: read      # checkout needs this
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repo
       - uses: actions/checkout@v4
 
-      # 2. Setup Node.js
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      # 3. Install deps & build React app
-      - name: Install & Build
+      - name: Build React App
         run: |
           npm ci
           npm run build
-          # package dist/ into a zip
           cd dist && zip -r ../app.zip . && cd ..
 
-      # 4. Login to Azure with SP credentials
-      - name: Azure Login
+      - name: Azure Login (OIDC)
         uses: azure/login@v1
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}        # your App Registration (clientId)
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # 5. Deploy zip to App Service
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
-          app-name: ${{ secrets.WEBAPP_NAME }}
+          app-name: hello-react-web   # or store as a secret
           package: app.zip
